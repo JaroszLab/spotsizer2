@@ -1,0 +1,164 @@
+#!/usr/bin/env MathematicaScript -script
+
+
+(*Set up universal functions*)
+CustEucl[x1_, x2_] := EuclideanDistance[x1[[2]], x2[[2]]];
+top20mean[inlist_] := Mean[Sort[inlist][[Round[Length[inlist]*0.8, 1] ;;]]];
+
+MakeMask[image_, imgThresh_, sizeThresh_] :=
+    Module[{mask, threshold},
+        mask = MorphologicalComponents[image, imgThresh*FindThreshold[image]]];
+        threshold = sizeThresh * Dimensions[image][[2]] / 32.0
+        mask = SelectComponents[mask, "Area", (threshold < #) &];
+        mask = DeleteBorderComponents[mask];
+        Return[mask]
+        ]
+
+MakeGrid[cfile_] :=
+    Module[{gridSpec, formatConverter, rows, cols, xpos, ypos, grid, gridDist}, 
+        gridSpec = Import[cfile, "CSV"][[16]][[2 ;; 6]];
+        
+        formatConverter = <| 96 -> {8,12}, 384 -> {16,24}, 1536 -> {32,48}} |>;
+        rows = formatConverter[gridSpec[[1]]][[1]];
+        cols = formatConverter[gridSpec[[1]]][[2]];
+        
+        xpos = Range[gridSpec[[2]],    gridSpec[[4]], (gridSpec[[4]] - gridSpec[[2]])/(cols - 1)];
+        ypos = Reverse[Range[gridSpec[[3]], gridSpec[[5]], (gridSpec[[5]] - gridSpec[[3]])/(rows - 1)]];
+        (*This is due to awkward indexing. Grid is indexed row,col from bottom left. Image coordinates are x,y from top left*)
+        
+        grid = Table[{y, x} -> {xpos[[x]], ypos[[y]]}, {x, Length[xpos]}, {y, Length[ypos]}];
+        gridDist = grid[[1, 1, 2, 2]] - grid[[1, 2, 2, 2]];
+        Return[{grid, gridDist}]
+        ]
+
+MatchComponentsToGrid[mask_, baseStr_] :=
+    Module[{comPos, distMat, matches, posDict, gridToLabel, ComponentToLabel, labels, labelledImage },
+        (*Match positions to grid*)
+        comPos = ComponentMeasurements[mask, "Centroid"];
+        distMat = DistanceMatrix[Flatten[grid, 1], comPos, DistanceFunction -> CustEucl];
+        matches = Position[distMat, _?(# < (gridDist/distThresh) &)];
+        posDict = Table[Flatten[grid, 1][[x[[1]]]][[1]] -> comPos[[x[[2]]]][[1]], {x, matches}];
+        
+        (*Match grid and labels*) 
+        gridToLabel = Table[pos -> , {pos, posDict[[All, 1]]}];
+        gridToLabel = Table[pos -> StringJoin[ToString[pos[[1]]], "-", ToString[pos[[2]]]], {pos, posDict[[All, 1]]}];
+        gtlAssoc = Association[gridToLabel];
+
+        
+        ComponentToLabel = Association[Table[Association[posDict][x[[1]]] -> x[[2]], {x, gridToLabel}]];
+
+        (*make QC image and export*)  
+        labels = Map[#[[1]] -> (#[[2]] /. comPos) &, posDict];
+        labels = Map[((#[[1]] /. gridToLabel ) -> #[[2]]) &, labels];
+        labels = Table[{White, Style[Text[comp[[1]], comp[[2]]], FontSize -> 24]}, {comp, labels}]; 
+        labelledImage = Show[mask//Colorize, Graphics[labels]];
+        Export[StringJoin["spotsizer2_qc/", baseStr, "_mask.png"], labelledImage, "PNG"];
+        
+        Return[{posDict, gtlAssoc}]
+        ]
+
+
+CFUQ[toAnalyse_] := 
+    Module[{analyse},
+        analyse[imagePath_] := 
+            Module[{image, mask, posDict, headers, data, baseStr}, 
+                baseStr = StringSplit[imgPath, "."][[1]];
+            
+                image = If[negateQ, ColorNegate[Import[imagePath]], Import[imagePath]];
+                mask = MakeMask[image, imgThresh, sizeThresh];
+                posDict = MatchComponentsToGrid[mask, distThresh, baseStr][[1]];
+
+                headers = {"Row", "Column", "CFU"} ;
+                data = Table[{entry[[1]], entry[[2]], If[MemberQ[posDict[[All, 1]], entry], "True", "False"]}, {entry, Flatten[grid[[All, All, 1]], 1]}];
+                Export[StringJoin["analysis_results/", baseStr, ".csv"], Join[{headers}, data], "CSV"];
+                ]
+        If[parallelQ, ParallelDo[analyse[imagePath], {imagePath, toAnalyse}], Do[analyse[imagePath], {imagePath, toAnalyse}]];
+
+Batch[toAnalyse_] :=
+    Module[{analyse},
+        analyse[imagePath_] := 
+            Module[{image, mask, posDict, headers, data, baseStr, background, backgroundInt}, 
+                baseStr = StringSplit[imagePath, "."][[1]];
+            
+                image = If[negateQ, ColorNegate[Import[imagePath]], Import[imagePath]];
+                mask = MakeMask[image, imgThresh, sizeThresh];
+                posDict = MatchComponentsToGrid[mask, distThresh, baseStr][[1]];
+                gtlAssoc = MatchComponentsToGrid[mask, distThresh, baseStr][[2]];
+                (*Find background intensitiy*)
+                background = Table[1, {i, Dimensions[mask][[1]]}, {j, Dimensions[mask][[2]]}] - Unitize[mask];
+                backgroundInt = ComponentMeasurements[{background, image}, "MeanIntensity"];
+                
+                (*Measure area and intensities*)
+                areas = Association[ComponentMeasurements[{mask, image}, "Area"]];
+                intensities = ComponentMeasurements[{mask, image}, "IntensityData"];
+                intensities[[All, 2]] = intensities[[All, 2]] - backgroundInt[[1, 2]];
+                intensities = Map[Total, Association[intensities]];
+                
+                (*Compile table and export*)
+                data = Table[{gtlAssoc[x[[1]]], x[[1, 1]], x[[1, 2]], areas[x[[2]]], intensities[x[[2]]]}, {x, posDict}];
+                headers = {"Position", "Column", "Row", "Area", "IntegratedIntensity"};
+
+                Export[StringJoin["spotsizer2_results/", baseStr, ".csv"], Join[{headers}, data], "CSV"];
+                ]
+                
+        If[parallelQ, ParallelDo[analyse[imagePath], {imagePath, toAnalyse}], Do[analyse[imagePath], {imagePath, toAnalyse}]];
+        
+Timecourse[toAnalyse_] :=
+    Module[{analyse, final_image_path, final_image, intData, final_image_mask, final_image_baseStr, final_image_posDict},
+        analyse[imagePath_, mask_] := 
+            Module[{image, posDict, headers, data, baseStr, background, backgroundInt}, 
+            
+                image = If[negateQ, ColorNegate[Import[imagePath]], Import[imagePath]];
+                
+                (*Find background intensitiy*)
+                background = Table[1, {i, Dimensions[mask][[1]]}, {j, Dimensions[mask][[2]]}] - Unitize[mask];
+                backgroundInt = ComponentMeasurements[{background, image}, "MeanIntensity"];
+                
+                (*Measure intensities*)
+                intensities = ComponentMeasurements[{mask, image}, "IntensityData"];
+                intensities[[All, 2]] = intensities[[All, 2]] - backgroundInt[[1, 2]];
+                intensities = Map[Total, Association[intensities]];                
+                Return[intensities]
+                ]
+        
+        final_image_path = toAnalys[[-1]]
+        final_image = If[negateQ, ColorNegate[Import[final_image_path]], Import[final_image_path]];
+        final_image_mask = MakeMask[final_image, imgThresh, sizeThresh];
+        final_image_baseStr = StringSplit[final_image_path, "."][[1]];
+        final_image_posDict = MatchComponentsToGrid[final_image_mask, final_image_baseStr]
+
+        If[parallelQ, intData = ParallelTable[analyse[imagePath, final_image_mask], {imagePath, toAnalyse}], intData = Table[analyse[imagePath, final_image_mask], {imagePath, toAnalyse}]];
+        
+        (*Compile table and export*)
+        data = Table[Table[entry[x[[2]]], {entry, intData}], {x, posDict}];
+        headers = Table[gtlAssoc[x[[1]]], {x, posDict}];
+        Export[StringJoin["spotsizer2_results/", baseStr, ".csv"], Join[{headers}, data], "CSV"];
+
+
+(*Main block*)
+<< "spotsizer2.config"
+Assert[BooleanQ[parallelQ]]
+Assert[image_threshold > 0]
+Assert[distance_threshold > 2]
+Assert[size_threshold > 0]
+Assert[BooleanQ[negateQ]]
+
+CreateDirectory["spotsizer2_results"];
+CreateDirectory["spotsizer2_qc"];
+
+(*Find image files and analyse*)
+toAnalyse = FileNames[{"*.JPG", "*.jpg", "*.PNG", "*.png", "*.TIFF", "*.tiff"}];
+Print["Spotsizer2 will analyse the following images:"]
+Print[toAnalyse]]
+
+(*Load grid*)
+grid_result = MakeGrid["Colonyzer.txt"]
+grid = grid_result[[1]]
+gridDist = grid_result[[2]]
+
+(*Run*)
+Which[cmd=="cfuq", CFUQ[toAnalyse],
+      cmd=="timecourse", Timecourse[toAnalyse],
+      cmd=="batch", Batch[toAnalyse]
+      ];
+Print["Done."]
