@@ -1,4 +1,4 @@
-#!/home/stephankamrad/software/Mathematica/11.1/MathematicaScript -script
+#!/home/stephankamrad/software/Mathematica/10.04/MathematicaScript -script
 
 
 (*Set up universal functions*)
@@ -6,9 +6,10 @@ CustEucl[x1_, x2_] := EuclideanDistance[x1[[2]], x2[[2]]];
 top20mean[inlist_] := Mean[Sort[inlist][[Round[Length[inlist]*0.8, 1] ;;]]];
 
 MakeMask[image_] :=
-    Module[{mask, threshold},
-        mask = MorphologicalComponents[image, imageThreshold*FindThreshold[image]];
-        threshold = sizeThreshold * ImageDimensions[image][[1]] / 32.0;
+    Module[{mask, intensityThreshold, threshold},
+        intensityThreshold = If[hardImageThresholdQ==True, hardImageThreshold, imageThreshold*FindThreshold[image]];
+        mask = MorphologicalComponents[image, intensityThreshold];
+        threshold = If[hardSizeThresholdQ, hardSizeThreshold, sizeThreshold*ImageDimensions[image][[1]] / 32.0];
         mask = SelectComponents[mask, "Area", (threshold < #) &];
         mask = DeleteBorderComponents[mask];
         Return[mask];
@@ -147,12 +148,18 @@ Assert[imageThreshold > 0];
 Assert[distanceThreshold > 2];
 Assert[sizeThreshold > 0];
 Assert[BooleanQ[negateQ]];
+Assert[BooleanQ[hardImageThresholdQ]];
+Assert[BooleanQ[hardSizeThresholdQ]];
 Print["Using the following parameters:"];
 Print["parallelQ: ", parallelQ];
 Print["distanceThreshold: ", distanceThreshold];
 Print["imageThreshold: ", imageThreshold];
 Print["sizeThreshold: ", sizeThreshold];
 Print["negateQ: ", negateQ];
+Print["hardImageThresholdQ: ", hardImageThresholdQ];
+If[hardImageThresholdQ, Print["hardImageThreshold: ", hardImageThreshold]];
+Print["hardSizeThresholdQ: ", hardSizeThresholdQ];
+If[hardSizeThresholdQ, Print["hardSizeThreshold: ", hardSizeThreshold]];
 
 CreateDirectory["spotsizer2_results"];
 CreateDirectory["spotsizer2_qc"];
