@@ -140,8 +140,11 @@ Timecourse[toAnalyse_] :=
 (*Main block*)
 Print["Welcome to Spotsizer2"];
 Print[StringJoin["The working directory is: ", Directory[]]];
-Print["Reading spotsizer2.config file."]
-Get["spotsizer2.config"];
+
+configPath = If[FileExistsQ["spotsizer2.config"], "spotsizer2.config", StringJoin[$ScriptCommandLine[[1]], ".config"]];
+If[FileExistsQ["spotsizer2.config"], Print["Reading local spotsizer2.config file."], Print["spotsizer2.config file not found in current directory. Reading default parameters."]];
+If[FileExistsQ["spotsizer2.config"], Get["spotsizer2.config"], Get[StringJoin[$ScriptCommandLine[[1]], ".config"]]];
+
 On[Assert];
 Assert[BooleanQ[parallelQ]];
 Assert[imageThreshold > 0];
@@ -177,7 +180,7 @@ gridDist = gridResult[[2]];
 
 (*Run*)
 If[parallelQ,LaunchKernels[$ProcessorCount]];
-cmd = $CommandLine[[-1]];
+cmd = $ScriptCommandLine[[-1]];
 Print[StringJoin["Running analysis in ", cmd, " mode."]];
 
 Which[cmd=="cfuq", CFUQ[toAnalyse],

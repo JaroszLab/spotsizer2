@@ -12,8 +12,8 @@ cfuq | Determine if a colony is present at each grid position
 batch | Determine area and integrated density for each colony. For each image, analyse individually and create a csv
 timecourse | Determine integrated density for each colony. Use the last image to create the mask and apply this to all previous images. Create a single csv as output.
 
-**Spotsizer2 will always analyse all images in the current directory. The directory also needs to contain a Colonyzer.txt file with grid information and a spotsizer2.config file.**  
-The options in the spotsizer2.config file are the following:  
+**Spotsizer2 will always analyse all images in the current directory. The directory also needs to contain a Colonyzer.txt file with grid information and optionally a spotsizer2.config file.**  
+The following options can be set in the spotsizer2.config file. If a file with this name does not exist in the image directory, default options will be used.  
 
 Name|Description|Type|Default
 ----|-----------|----|-------
