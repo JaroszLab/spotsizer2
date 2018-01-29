@@ -4,6 +4,7 @@
 (*Set up universal functions*)
 CustEucl[x1_, x2_] := EuclideanDistance[x1[[2]], x2[[2]]];
 top20mean[inlist_] := Mean[Sort[inlist][[Round[Length[inlist]*0.8, 1] ;;]]];
+SetMin[inList_] := Map[(If[# == Min[inList], #, 1000000]) &, inList];
 
 MakeMask[image_] :=
     Module[{mask, intensityThreshold, threshold},
@@ -37,7 +38,8 @@ MatchComponentsToGrid[mask_, baseStr_] :=
         (*Match positions to grid*)
         comPos = ComponentMeasurements[mask, "Centroid"];
         distMat = DistanceMatrix[Flatten[grid, 1], comPos, DistanceFunction -> CustEucl];
-        matches = Position[distMat, _?(# < (gridDist/distanceThreshold) &)];
+        matches = If[onlyNearestQ, Position[Map[SetMin, distMat], _?(# < (gridDist/distanceThreshold) &)], Position[distMat, _?(# < (gridDist/distanceThreshold) &)]];
+
         posDict = Table[Flatten[grid, 1][[x[[1]]]][[1]] -> comPos[[x[[2]]]][[1]], {x, matches}];
         
         (*Match grid and labels*) 
@@ -97,7 +99,7 @@ Batch[toAnalyse_] :=
                 
                 (*Compile table and export*)
                 data = Table[{gtlAssoc[x[[1]]], x[[1, 1]], x[[1, 2]], areas[x[[2]]], intensities[x[[2]]]}, {x, posDict}];
-                headers = {"Position", "Column", "Row", "Area", "IntegratedIntensity"};
+                headers = {"Position", "Row", "Column", "Area", "IntegratedIntensity"};
 
                 Export[StringJoin["spotsizer2_results/", baseStr, ".csv"], Join[{headers}, data], "CSV"];
                 ];
@@ -151,6 +153,7 @@ Assert[imageThreshold > 0];
 Assert[distanceThreshold > 2];
 Assert[sizeThreshold > 0];
 Assert[BooleanQ[negateQ]];
+Assert[BooleanQ[onlyNearestQ]];
 Assert[BooleanQ[hardImageThresholdQ]];
 Assert[BooleanQ[hardSizeThresholdQ]];
 Print["Using the following parameters:"];
@@ -159,6 +162,7 @@ Print["distanceThreshold: ", distanceThreshold];
 Print["imageThreshold: ", imageThreshold];
 Print["sizeThreshold: ", sizeThreshold];
 Print["negateQ: ", negateQ];
+Print["onlyNearestQ: ", onlyNearestQ];
 Print["hardImageThresholdQ: ", hardImageThresholdQ];
 If[hardImageThresholdQ, Print["hardImageThreshold: ", hardImageThreshold]];
 Print["hardSizeThresholdQ: ", hardSizeThresholdQ];
