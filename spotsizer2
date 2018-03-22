@@ -52,7 +52,7 @@ MatchComponentsToGrid[mask_, baseStr_] :=
         (*make QC image and export*)  
         labels = Map[#[[1]] -> (#[[2]] /. comPos) &, posDict];
         labels = Map[((#[[1]] /. gridToLabel ) -> #[[2]]) &, labels];
-        labels = Table[{White, Style[Text[comp[[1]], comp[[2]]], FontSize -> 24]}, {comp, labels}]; 
+        labels = Table[{White, Style[Text[comp[[1]], comp[[2]]], FontSize -> 16]}, {comp, labels}]; 
         labelledImage = Show[mask//Colorize, Graphics[labels]];
         Export[StringJoin["spotsizer2_qc/", baseStr, "_mask.png"], labelledImage, "PNG"];
         
