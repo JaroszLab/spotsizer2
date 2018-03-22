@@ -17,17 +17,18 @@ MakeMask[image_] :=
         ];
 
 MakeGrid[cfile_] :=
-    Module[{gridSpec, formatConverter, rows, cols, xpos, ypos, grid, gridDist}, 
-        gridSpec = Import[cfile, "CSV"][[16]][[2 ;; 6]];
+    Module[{gridSpec, formatConverter, rows, cols, xpos, ypos, grid, gridDist},
+
+        (*Import grid file*)
+        gridSpec = Import[cfile, "CSV"][[1]];
+
+        (*entries are: number of rows, number of columns, x of top left colony, y of top left colony, x of bottom right colony, y of bottom right colony*)
+        rows = gridSpec[[1]];
+        cols = gridSpec[[2]];
         
-        formatConverter = <| 96 -> {8,12}, 384 -> {16,24}, 1536 -> {32,48} |>;
-        rows = formatConverter[gridSpec[[1]]][[1]];
-        cols = formatConverter[gridSpec[[1]]][[2]];
-        
-        xpos = Range[gridSpec[[2]],    gridSpec[[4]], (gridSpec[[4]] - gridSpec[[2]])/(cols - 1)];
-        ypos = Reverse[Range[gridSpec[[3]], gridSpec[[5]], (gridSpec[[5]] - gridSpec[[3]])/(rows - 1)]];
-        (*This is due to awkward indexing. Grid is indexed row,col from bottom left. Image coordinates are x,y from top left*)
-        
+        xpos = Range[gridSpec[[3]], gridSpec[[5]], (gridSpec[[5]] - gridSpec[[3]])/(cols - 1)];
+        ypos = Range[gridSpec[[4]], gridSpec[[6]], (gridSpec[[6]] - gridSpec[[4]])/(rows - 1)];
+
         grid = Table[{y, x} -> {xpos[[x]], ypos[[y]]}, {x, Length[xpos]}, {y, Length[ypos]}];
         gridDist = grid[[1, 1, 2, 2]] - grid[[1, 2, 2, 2]];
         Return[{grid, gridDist}];
@@ -55,6 +56,11 @@ MatchComponentsToGrid[mask_, baseStr_] :=
         labels = Table[{White, Style[Text[comp[[1]], comp[[2]]], FontSize -> 16]}, {comp, labels}]; 
         labelledImage = Show[mask//Colorize, Graphics[labels]];
         Export[StringJoin["spotsizer2_qc/", baseStr, "_mask.png"], labelledImage, "PNG"];
+        
+
+        gridImage = Table[{White, Style[Text["X", pos], FontSize -> 16]}, {pos, Flatten[grid][[All, 2]]}];
+        gridLabelledImage = Show[mask//Colorize, Graphics[gridImage]];
+        Export[StringJoin["spotsizer2_qc/", baseStr, "_grid.png"], gridLabelledImage, "PNG"];
         
         Return[{posDict, gtlAssoc}];
         ];
@@ -177,8 +183,8 @@ Print["Spotsizer2 will analyse the following images:"];
 Print[toAnalyse];
 
 (*Load grid*)
-Print["Reading Colonyzer.txt file."];
-gridResult = MakeGrid["Colonyzer.txt"];
+Print["Reading grid.csv file."];
+gridResult = MakeGrid["grid.txt"];
 grid = gridResult[[1]];
 gridDist = gridResult[[2]];
 
