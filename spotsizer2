@@ -53,7 +53,7 @@ MatchComponentsToGrid[mask_, baseStr_] :=
         (*make QC image and export*)  
         labels = Map[#[[1]] -> (#[[2]] /. comPos) &, posDict];
         labels = Map[((#[[1]] /. gridToLabel ) -> #[[2]]) &, labels];
-        labels = Table[{White, Style[Text[comp[[1]], comp[[2]]], FontSize -> 16]}, {comp, labels}]; 
+        labels = Table[{White, Style[Text[comp[[1]], comp[[2]]], FontSize -> 11]}, {comp, labels}]; 
         labelledImage = Show[mask//Colorize, Graphics[labels]];
         Export[StringJoin["spotsizer2_qc/", baseStr, "_mask.png"], labelledImage, "PNG"];
         
@@ -144,6 +144,71 @@ Timecourse[toAnalyse_] :=
         headers = Table[finalImagegtlAssoc[x[[1]]], {x, finalImagePosDict}];
         Export[StringJoin["spotsizer2_results/", finalImageBaseStr, ".csv"], Join[{headers}, data], "CSV"];
         ];
+
+    PhloxinB[toAnalyse_] :=
+      Module[{analyse},
+       analyse[imagePath_] := 
+        Module[{image, mask, threshold, posDict, headers, data, baseStr, 
+          background, valueImage, backgroundInt, areas, intensities, 
+          gtlAssoc, centroids},
+         baseStr = StringSplit[imagePath, "."][[1]];
+         (*Import the image*)
+         image = Import[imagePath];
+         (*Multiply channels to make red more visible*)
+         
+         image = ImageMultiply[image, {0, 1.75, 1.75}];
+         (*Convert to grayscale*)
+         
+         image = ColorConvert[image, "Grayscale"];
+         (*Subtract background, tends to be more uneven for color images, 
+         and make everything a bit brighter*)
+         
+         image = ImageSubtract[ image, GaussianFilter[image, {100, 20}]];
+         (*Invert color and make a bit brighter*)
+         
+         image = ImageMultiply[ColorNegate[image], 0.5];
+         (*Export image*)
+         
+         Export[StringJoin["spotsizer2_qc/", baseStr, 
+           "_backgroundSubtracted.png"], image, "PNG"];
+         
+         mask = MakeMask[image];
+         posDict = MatchComponentsToGrid[mask, baseStr][[1]];
+         gtlAssoc = MatchComponentsToGrid[mask, baseStr][[2]];
+         
+         (*Measure area and intensities, subtract background*)
+         
+         areas = Association[ComponentMeasurements[{mask, image}, "Area"]];
+         intensities = 
+          Association[
+           ComponentMeasurements[{mask, image}, "MeanIntensity"]];
+         centroids = 
+          Association[ComponentMeasurements[{mask, image}, "Centroid"]];
+         
+         valueImage = 
+          Table[{White, 
+            Style[Text[
+              NumberForm[intensities[x[[2]]], 
+               2], {centroids[x[[2]]][[1]], centroids[x[[2]]][[2]] + 10}],
+              FontSize -> 8]}, {x, posDict}];
+         Export[
+          StringJoin["spotsizer2_qc/", baseStr, "_meanIntensities.png"], 
+          Show[Import[imagePath], Graphics[valueImage]], "PNG"];
+         
+         (*Compile table and export*)
+         data = Table[{gtlAssoc[x[[1]]], x[[1, 1]], x[[1, 2]], 
+            areas[x[[2]]], intensities[x[[2]]]}, {x, posDict}];
+         headers = {"Position", "Row", "Column", "Area", 
+           "MeanIntensity"};
+         Export[StringJoin["spotsizer2_results/", baseStr, ".csv"], 
+          Join[{headers}, data], "CSV"];
+         ];
+       If[parallelQ, 
+        ParallelDo[analyse[imagePath], {imagePath, toAnalyse}], 
+        Do[analyse[imagePath], {imagePath, toAnalyse}]];
+       ];
+
+
 
 (*Main block*)
 Print["Welcome to Spotsizer2"];
