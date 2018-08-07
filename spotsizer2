@@ -36,7 +36,7 @@ MakeGrid[cfile_] :=
         ];
 
 MatchComponentsToGrid[mask_, baseStr_] :=
-    Module[{comPos, distMat, matches, posDict, gridToLabel, ComponentToLabel, labels, labelledImage },
+    Module[{comPos, distMat, matches, posDict, gridToLabel, ComponentToLabel, labels, labelledImage, gtlAssoc},
         (*Match positions to grid*)
         comPos = ComponentMeasurements[mask, "Centroid"];
         distMat = DistanceMatrix[Flatten[grid, 1], comPos, DistanceFunction -> CustEucl];
@@ -86,7 +86,7 @@ CFUQ[toAnalyse_] :=
 Batch[toAnalyse_] :=
     Module[{analyse},
         analyse[imagePath_] := 
-            Module[{image, mask, posDict, headers, data, baseStr, background, backgroundInt}, 
+            Module[{image, mask, posDict, headers, data, baseStr, background, backgroundInt, gtlAssoc, areas, intensities}, 
                 baseStr = StringSplit[imagePath, "."][[1]];
             
                 image = If[negateQ, ColorNegate[Import[imagePath]], Import[imagePath]];
@@ -114,7 +114,7 @@ Batch[toAnalyse_] :=
         If[parallelQ, ParallelDo[analyse[imagePath], {imagePath, toAnalyse}], Do[analyse[imagePath], {imagePath, toAnalyse}]]];
         
 Timecourse[toAnalyse_] :=
-    Module[{analyse, finalImagePath, finalImage, intData, data, finalImageMask, finalImageBaseStr, finalImagePosDict, finalImagegtlAssoc},
+    Module[{analyse, finalImagePath, finalImage, intData, data, finalImageMask, finalImageBaseStr, finalImagePosDict, finalImagegtlAssoc, headers},
         analyse[imagePath_, mask_] := 
             Module[{image, background, backgroundInt, intensities}, 
             
