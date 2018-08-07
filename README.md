@@ -12,7 +12,8 @@ cfuq | Determine if a colony is present at each grid position
 batch | Determine area and integrated density for each colony. For each image, analyse individually and create a csv
 timecourse | Determine integrated density for each colony. Use the last image to create the mask and apply this to all previous images. Create a single csv as output.
 
-**Spotsizer2 will always analyse all images in the current directory. The directory also needs to contain a Colonyzer.txt file with grid information and optionally a spotsizer2.config file.**  
+**Spotsizer2 will always analyse all images in the current directory. The directory also needs to contain a grid.txt file with grid information and optionally a spotsizer2.config file.**  
+The grid.txt file must contain a singe line stating the number of rows, number of columns, x of top left colony, y of top left colony, x of bottom right colony, y of bottom right colony. This must be in the Mathematica Image coordinate system, which has its origin in the lower left corner.  
 The following options can be set in the spotsizer2.config file. If a file with this name does not exist in the image directory, default options will be used.  
 
 Name|Description|Type|Default
