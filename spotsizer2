@@ -186,23 +186,13 @@ Timecourse[toAnalyse_] :=
          centroids = 
           Association[ComponentMeasurements[{mask, image}, "Centroid"]];
          
-         valueImage = 
-          Table[{White, 
-            Style[Text[
-              NumberForm[intensities[x[[2]]], 
-               2], {centroids[x[[2]]][[1]], centroids[x[[2]]][[2]] + 10}],
-              FontSize -> 8]}, {x, posDict}];
-         Export[
-          StringJoin["spotsizer2_qc/", baseStr, "_meanIntensities.png"], 
-          Show[Import[imagePath], Graphics[valueImage]], "PNG"];
+         valueImage = Table[{White, Style[Text[NumberForm[intensities[x[[2]]], 2], {centroids[x[[2]]][[1]], centroids[x[[2]]][[2]] + 10}], FontSize -> 8]}, {x, posDict}];
+         Export[StringJoin["spotsizer2_qc/", baseStr, "_meanIntensities.png"], Show[Import[imagePath], Graphics[valueImage]], "PNG"];
          
          (*Compile table and export*)
-         data = Table[{gtlAssoc[x[[1]]], x[[1, 1]], x[[1, 2]], 
-            areas[x[[2]]], intensities[x[[2]]]}, {x, posDict}];
-         headers = {"Position", "Row", "Column", "Area", 
-           "MeanIntensity"};
-         Export[StringJoin["spotsizer2_results/", baseStr, ".csv"], 
-          Join[{headers}, data], "CSV"];
+         data = Table[{gtlAssoc[x[[1]]], x[[1, 1]], x[[1, 2]], areas[x[[2]]], intensities[x[[2]]]}, {x, posDict}];
+         headers = {"Position", "Row", "Column", "Area", "MeanIntensity"};
+         Export[StringJoin["spotsizer2_results/", baseStr, ".csv"], Join[{headers}, data], "CSV"];
          ];
        If[parallelQ, 
         ParallelDo[analyse[imagePath], {imagePath, toAnalyse}], 
@@ -228,6 +218,7 @@ Assert[BooleanQ[negateQ]];
 Assert[BooleanQ[onlyNearestQ]];
 Assert[BooleanQ[hardImageThresholdQ]];
 Assert[BooleanQ[hardSizeThresholdQ]];
+Assert[BooleanQ[useWorklistQ]];
 Print["Using the following parameters:"];
 Print["parallelQ: ", parallelQ];
 Print["distanceThreshold: ", distanceThreshold];
@@ -236,6 +227,7 @@ Print["sizeThreshold: ", sizeThreshold];
 Print["negateQ: ", negateQ];
 Print["onlyNearestQ: ", onlyNearestQ];
 Print["hardImageThresholdQ: ", hardImageThresholdQ];
+Print["useWorklistQ: ", useWorklistQ];
 If[hardImageThresholdQ, Print["hardImageThreshold: ", hardImageThreshold]];
 Print["hardSizeThresholdQ: ", hardSizeThresholdQ];
 If[hardSizeThresholdQ, Print["hardSizeThreshold: ", hardSizeThreshold]];
@@ -244,7 +236,7 @@ CreateDirectory["spotsizer2_results"];
 CreateDirectory["spotsizer2_qc"];
 
 (*Find image files and analyse*)
-toAnalyse = FileNames[{"*.JPG", "*.jpg", "*.PNG", "*.png", "*.TIFF", "*.tiff"}];
+toAnalyse = If[useWorklistQ, ReadList["worklist.txt", String], FileNames[{"*.JPG", "*.jpg", "*.PNG", "*.png", "*.TIFF", "*.tiff"}]];
 Print["Spotsizer2 will analyse the following images:"];
 Print[toAnalyse];
 
