@@ -257,10 +257,12 @@ gridDist = gridResult[[2]];
 (*Run*)
 If[parallelQ,LaunchKernels[$ProcessorCount]];
 cmd = $ScriptCommandLine[[-1]];
+If[!MemberQ[{"cfuq", "timecourse", "batch", "phloxinb"}, cmd], Print["ERROR: Running mode must be one of {cfuq, timecourse, batch, phloxinb}"]; Abort[];];
 Print[StringJoin["Running analysis in ", cmd, " mode."]];
 
 Which[cmd=="cfuq", CFUQ[toAnalyse],
       cmd=="timecourse", Timecourse[toAnalyse],
-      cmd=="batch", Batch[toAnalyse]
+      cmd=="batch", Batch[toAnalyse],
+      cmd=="phloxinb", PhloxinB[toAnalyse]
       ];
 Print["Done."];
