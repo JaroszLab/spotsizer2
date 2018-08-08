@@ -12,7 +12,7 @@ MakeMask[image_] :=
         mask = MorphologicalComponents[image, intensityThreshold];
         threshold = If[hardSizeThresholdQ, hardSizeThreshold, sizeThreshold*ImageDimensions[image][[1]] / 32.0];
         mask = SelectComponents[mask, "Area", (threshold < #) &];
-        mask = SelectComponents[mask, "Area", (ImageDimensions[image][[1]] > #) &];(*Filter out hings which cover more than 2% of image area*)
+        mask = SelectComponents[mask, "Area", ((0.02*ImageDimensions[image][[1]]*ImageDimensions[image][[2]]) > #) &];(*Filter out hings which cover more than 2% of image area*)
         mask = DeleteBorderComponents[mask];
         Return[mask];
         ];
