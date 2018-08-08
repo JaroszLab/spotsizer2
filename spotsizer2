@@ -71,7 +71,7 @@ CFUQ[toAnalyse_] :=
     Module[{analyse},
         analyse[imagePath_] := 
             Module[{image, mask, posDict, headers, data, baseStr}, 
-                baseStr = StringSplit[imagePath, "."][[1]];
+                baseStr = StringSplit[StringSplit[imagePath, "/"][[-1]], "."][[;;-2]];
             
                 image = If[negateQ, ColorNegate[Import[imagePath]], Import[imagePath]];
                 mask = MakeMask[image];
@@ -87,7 +87,7 @@ Batch[toAnalyse_] :=
     Module[{analyse},
         analyse[imagePath_] := 
             Module[{image, mask, posDict, headers, data, baseStr, background, backgroundInt, gtlAssoc, areas, intensities}, 
-                baseStr = StringSplit[imagePath, "."][[1]];
+                baseStr = StringSplit[StringSplit[imagePath, "/"][[-1]], "."][[;;-2]];
             
                 image = If[negateQ, ColorNegate[Import[imagePath]], Import[imagePath]];
                 mask = MakeMask[image];
@@ -152,7 +152,7 @@ Timecourse[toAnalyse_] :=
         Module[{image, mask, threshold, posDict, headers, data, baseStr, 
           background, valueImage, backgroundInt, areas, intensities, 
           gtlAssoc, centroids},
-         baseStr = StringSplit[imagePath, "."][[1]];
+         baseStr = StringSplit[StringSplit[imagePath, "/"][[-1]], "."][[;;-2]];
          (*Import the image*)
          image = Import[imagePath];
          (*Multiply channels to make red more visible*)
